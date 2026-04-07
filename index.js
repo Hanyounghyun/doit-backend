@@ -12,6 +12,20 @@ const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb://127.0.0.1:27017/doit";
 const DB_RETRY_MS = 10000;
+const isProd = process.env.NODE_ENV === "production";
+
+let lastDbError = null;
+let lastDbErrorAt = null;
+
+function setLastDbError(err) {
+  if (!err) return;
+  lastDbErrorAt = new Date().toISOString();
+  lastDbError = {
+    name: err.name,
+    code: err.code,
+    message: String(err.message || err),
+  };
+}
 
 const app = express();
 app.use(
@@ -23,7 +37,20 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
-  res.status(dbConnected ? 200 : 503).json({ ok: true, dbConnected });
+  res.status(dbConnected ? 200 : 503).json({
+    ok: true,
+    dbConnected,
+    dbState: mongoose.connection.readyState,
+    ...(isProd
+      ? {}
+      : {
+          lastDbErrorAt,
+          lastDbError,
+          hasMongoUri: Boolean(
+            process.env.MONGO_URL || process.env.MONGO_URI || process.env.MONGODB_URI
+          ),
+        }),
+  });
 });
 
 app.use("/todos", todoRouter);
@@ -33,7 +60,10 @@ async function connectWithRetry() {
     mongoose.set("strictQuery", true);
     await mongoose.connect(MONGODB_URI);
     console.log("연결성공");
+    lastDbError = null;
+    lastDbErrorAt = null;
   } catch (err) {
+    setLastDbError(err);
     console.error("MongoDB connection failed. Retrying in 10s...", err.message);
     setTimeout(connectWithRetry, DB_RETRY_MS);
   }

@@ -4,8 +4,18 @@ const mongoose = require("mongoose");
 
 const router = express.Router();
 
+function requireDb(req, res, next) {
+  const dbConnected = mongoose.connection.readyState === 1;
+  if (!dbConnected) {
+    return res
+      .status(503)
+      .json({ ok: false, message: "database not connected" });
+  }
+  return next();
+}
+
 // GET /todos
-router.get("/", async (_req, res) => {
+router.get("/", requireDb, async (_req, res) => {
   try {
     const todos = await Todo.find().sort({ createdAt: -1 });
     return res.json({ ok: true, data: todos });
@@ -15,7 +25,7 @@ router.get("/", async (_req, res) => {
 });
 
 // POST /todos
-router.post("/", async (req, res) => {
+router.post("/", requireDb, async (req, res) => {
   try {
     const { title, dueDate } = req.body ?? {};
 
@@ -35,7 +45,7 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH /todos/:id
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", requireDb, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
@@ -97,7 +107,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 // DELETE /todos/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireDb, async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
