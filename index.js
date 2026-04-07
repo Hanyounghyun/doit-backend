@@ -11,6 +11,7 @@ const MONGODB_URI =
   process.env.MONGO_URI ||
   process.env.MONGODB_URI ||
   "mongodb://127.0.0.1:27017/doit";
+const DB_RETRY_MS = 10000;
 
 const app = express();
 app.use(
@@ -21,24 +22,28 @@ app.use(
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.status(dbConnected ? 200 : 503).json({ ok: true, dbConnected });
 });
 
 app.use("/todos", todoRouter);
 
-async function start() {
+async function connectWithRetry() {
   try {
     mongoose.set("strictQuery", true);
     await mongoose.connect(MONGODB_URI);
     console.log("연결성공");
-
-    app.listen(PORT, () => {
-      console.log(`Server listening on http://localhost:${PORT}`);
-    });
   } catch (err) {
-    console.error("Failed to start server:", err);
-    process.exitCode = 1;
+    console.error("MongoDB connection failed. Retrying in 10s...", err.message);
+    setTimeout(connectWithRetry, DB_RETRY_MS);
   }
+}
+
+function start() {
+  app.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
+  });
+  connectWithRetry();
 }
 
 async function shutdown(signal) {
