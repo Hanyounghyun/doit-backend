@@ -1,0 +1,21 @@
+{
+  "name": "doit-backend",
+  "version": "1.0.0",
+  "description": "DoIt backend API",
+  "main": "index.js",
+  "scripts": {"start":"node index.js",
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [],
+  "license": "UNLICENSED",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.1.0",
+    "mongoose": "^8.19.0"
+  }
+}
